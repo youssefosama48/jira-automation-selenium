@@ -18,7 +18,7 @@ public class LoginWithSQLInjectionAttempt {
     
     private WebDriver driver;
     private WebDriverWait wait;
-    private static final String APP_URL = "https://demo.guru99.com/V4/";
+    private final String APP_URL = "https://demo.guru99.com/V4/";
     
     @BeforeEach
     public void setUp() {
@@ -35,23 +35,24 @@ public class LoginWithSQLInjectionAttempt {
     @Test
     public void testLoginWithSQLInjectionAttempt() {
         driver.get(APP_URL);
-        
         WebElement usernameField = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("uid")));
+        assertTrue(usernameField.isDisplayed(), "Login page should load successfully");
+        
+        usernameField.sendKeys("admin' OR '1'='1");
         WebElement passwordField = driver.findElement(By.id("password"));
+        passwordField.sendKeys("anything");
+        
         WebElement loginButton = driver.findElement(By.name("btnLogin"));
-        
-        assertTrue(usernameField.isDisplayed(), "Login form should be displayed");
-        
-        usernameField.sendKeys("admin'; DROP TABLE users; --");
-        passwordField.sendKeys("test");
         loginButton.click();
         
         wait.until(ExpectedConditions.or(
-            ExpectedConditions.urlContains("manager"),
-            ExpectedConditions.presenceOfElementLocated(By.xpath("//*[contains(text(),'User or Password is not valid')]"))
+            ExpectedConditions.presenceOfElementLocated(By.id("uid")),
+            ExpectedConditions.urlContains("Managerhomepage")
         ));
         
-        assertFalse(driver.getCurrentUrl().contains("manager"), "Login should fail with SQL injection attempt");
+        String currentUrl = driver.getCurrentUrl();
+        assertFalse(currentUrl.contains("Managerhomepage"), "SQL injection should not bypass authentication");
+        assertTrue(driver.findElements(By.id("uid")).size() > 0, "Should remain on login page after failed attempt");
     }
     
     @AfterEach
