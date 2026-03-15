@@ -1,0 +1,74 @@
+name: Run Selenium Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        required: true
+      cycle_id:
+        required: false
+        default: ''
+      tc_key_map:
+        required: false
+        default: '{}'
+      callback_url:
+        required: true
+
+jobs:
+  selenium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Chrome
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y google-chrome-stable
+      - name: Run Maven Tests
+        id: mvn
+        run: mvn test -B -Dheadless=true --no-transfer-progress
+        continue-on-error: true
+      - name: POST results back to MCP
+        if: always()
+        env:
+          ISSUE_KEY:    ${{ inputs.issue_key }}
+          CYCLE_ID:     ${{ inputs.cycle_id }}
+          TC_KEY_MAP:   ${{ inputs.tc_key_map }}
+          CALLBACK_URL: ${{ inputs.callback_url }}
+        run: |
+          RESULTS="[]"
+          if [ -d target/surefire-reports ]; then
+            RESULTS=$(python3 - <<'PYEOF'
+import os, glob, json, xml.etree.ElementTree as ET
+results = []
+for f in glob.glob("target/surefire-reports/*.xml"):
+    try:
+        tree = ET.parse(f)
+        root = tree.getroot()
+        for tc in root.findall("testcase"):
+            classname = tc.get("classname", "").split(".")[-1]
+            is_fail   = tc.find("failure") is not None or tc.find("error") is not None
+            is_skip   = tc.find("skipped") is not None
+            status    = "BLOCKED" if is_skip else ("FAIL" if is_fail else "PASS")
+            err_el    = tc.find("failure") or tc.find("error")
+            err_msg   = (err_el.text or "")[:300] if err_el is not None else ""
+            results.append({"className": classname, "status": status, "errorMessage": err_msg})
+    except Exception as e:
+        import sys; print(e, file=sys.stderr)
+print(json.dumps(results))
+PYEOF
+          )
+          fi
+          curl -s -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"issueKey\":\"$ISSUE_KEY\",\"cycleId\":\"$CYCLE_ID\",\"tcKeyMap\":$TC_KEY_MAP,\"results\":$RESULTS,\"source\":\"github-actions\"}"
+      - name: Upload Surefire Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ inputs.issue_key }}
+          path: target/surefire-reports/
+          if-no-files-found: ignore
