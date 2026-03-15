@@ -1,6 +1,9 @@
 package automation.tests;
 
-import org.junit.jupiter.api.*;
+import io.github.bonigarcia.wdm.WebDriverManager;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -8,17 +11,17 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import io.github.bonigarcia.wdm.WebDriverManager;
 import java.time.Duration;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class LoginWithInvalidPassword {
     
     private WebDriver driver;
     private WebDriverWait wait;
     private static final String APP_URL = "https://demo.guru99.com/V4/";
-    private static final String USERNAME = "testuser";
+    private static final String VALID_USERNAME = "testuser";
     private static final String INVALID_PASSWORD = "wrongpass";
-    
+
     @BeforeEach
     public void setUp() {
         WebDriverManager.chromedriver().setup();
@@ -29,25 +32,27 @@ public class LoginWithInvalidPassword {
         }
         driver = new ChromeDriver(opts);
         wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-        driver.navigate().to(APP_URL);
     }
-    
+
     @Test
-    @DisplayName("TE-T195 - Login with invalid password")
     public void testLoginWithInvalidPassword() {
-        WebElement usernameField = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("uid")));
-        WebElement passwordField = driver.findElement(By.id("password"));
-        WebElement loginButton = driver.findElement(By.name("btnLogin"));
+        driver.get(APP_URL);
         
-        usernameField.sendKeys(USERNAME);
+        WebElement usernameField = wait.until(ExpectedConditions.elementToBeClickable(By.id("uid")));
+        assertTrue(usernameField.isDisplayed(), "Login page should display");
+        
+        usernameField.sendKeys(VALID_USERNAME);
+        WebElement passwordField = driver.findElement(By.id("password"));
         passwordField.sendKeys(INVALID_PASSWORD);
+        
+        WebElement loginButton = driver.findElement(By.name("btnLogin"));
         loginButton.click();
         
-        String currentUrl = driver.getCurrentUrl();
-        Assertions.assertTrue(currentUrl.contains("V4"), "User should remain on login page");
-        Assertions.assertFalse(currentUrl.contains("manager"), "User should not reach manager page");
+        WebElement errorMessage = wait.until(ExpectedConditions.presenceOfElementLocated(
+            By.xpath("//*[contains(text(),'User or Password is not valid')]")));
+        assertTrue(errorMessage.isDisplayed(), "Error message should be displayed for invalid credentials");
     }
-    
+
     @AfterEach
     public void tearDown() {
         if (driver != null) {
