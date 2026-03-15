@@ -1,4 +1,4 @@
-name: Run Selenium Tests
+name: Selenium Automation
 
 on:
   workflow_dispatch:
@@ -28,7 +28,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y google-chrome-stable
       - name: Run Maven Tests
-        id: mvn
         run: mvn test -B -Dheadless=true --no-transfer-progress
         continue-on-error: true
       - name: POST results back to MCP
@@ -42,12 +41,11 @@ jobs:
           RESULTS="[]"
           if [ -d target/surefire-reports ]; then
             RESULTS=$(python3 - <<'PYEOF'
-import os, glob, json, xml.etree.ElementTree as ET
+import glob, json, xml.etree.ElementTree as ET
 results = []
 for f in glob.glob("target/surefire-reports/*.xml"):
     try:
-        tree = ET.parse(f)
-        root = tree.getroot()
+        root = ET.parse(f).getroot()
         for tc in root.findall("testcase"):
             classname = tc.get("classname", "").split(".")[-1]
             is_fail   = tc.find("failure") is not None or tc.find("error") is not None
