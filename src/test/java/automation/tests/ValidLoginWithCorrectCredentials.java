@@ -1,27 +1,27 @@
 package automation.tests;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.By;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import io.github.bonigarcia.wdm.WebDriverManager;
 import java.time.Duration;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ValidLoginWithCorrectCredentials {
     
     private WebDriver driver;
     private WebDriverWait wait;
-    private final String APP_URL = "https://demo.guru99.com/V4/";
-    private final String USERNAME = "testuser";
-    private final String PASSWORD = "Test123!";
-    
+    private static final String APP_URL = "https://demo.guru99.com/V4/";
+    private static final String USERNAME = "testuser";
+    private static final String PASSWORD = "Test123";
+
     @BeforeEach
     public void setUp() {
         WebDriverManager.chromedriver().setup();
@@ -34,17 +34,18 @@ public class ValidLoginWithCorrectCredentials {
         wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         driver.manage().window().maximize();
     }
-    
+
     @Test
     public void testValidLoginWithCorrectCredentials() {
         driver.get(APP_URL);
         
         WebElement usernameField = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("uid")));
-        assertTrue(usernameField.isDisplayed(), "Login form should be displayed");
+        assertTrue(usernameField.isDisplayed(), "Login page should display");
         
         usernameField.sendKeys(USERNAME);
         WebElement passwordField = driver.findElement(By.id("password"));
         passwordField.sendKeys(PASSWORD);
+        assertTrue(!usernameField.getAttribute("value").isEmpty(), "Credentials entered successfully");
         
         WebElement loginButton = driver.findElement(By.name("btnLogin"));
         loginButton.click();
@@ -52,7 +53,7 @@ public class ValidLoginWithCorrectCredentials {
         wait.until(ExpectedConditions.urlContains("Managerhomepage"));
         assertTrue(driver.getCurrentUrl().contains("Managerhomepage"), "User should be redirected to dashboard");
     }
-    
+
     @AfterEach
     public void tearDown() {
         if (driver != null) {
